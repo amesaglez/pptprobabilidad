@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Probabilidad · 4º ESO · El Gran Juego</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e17;
+    --surface: #1a1828;
+    --border: #2e2b45;
+    --s1: #ff6b35;
+    --s2: #00c9a7;
+    --s3: #ffd166;
+    --s4: #a78bfa;
+    --text: #fffffe;
+    --muted: #a7a5c0;
+    --card: #211f35;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Lora', serif;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── SLIDE ENGINE ── */
+  .deck { width: 100vw; height: 100vh; position: relative; }
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    padding: 60px;
+    opacity: 0; pointer-events: none;
+    transition: opacity .4s ease, transform .4s ease;
+    transform: translateY(20px);
+  }
+  .slide.active {
+    opacity: 1; pointer-events: all; transform: translateY(0);
+  }
+
+  /* ── NAV ── */
+  .nav {
+    position: fixed; bottom: 32px; right: 40px;
+    display: flex; gap: 12px; z-index: 100;
+  }
+  .nav button {
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 13px; padding: 10px 20px;
+    border-radius: 6px; cursor: pointer;
+    transition: all .2s;
+  }
+  .nav button:hover { background: var(--border); }
+  .nav button:disabled { opacity: .3; cursor: default; }
+
+  .progress {
+    position: fixed; bottom: 38px; left: 40px;
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    color: var(--muted); z-index: 100;
+  }
+  .progress-bar {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: linear-gradient(90deg, var(--s1), var(--s2));
+    transition: width .3s ease; z-index: 100;
+  }
+
+  /* ── SESSION BADGE ── */
+  .session-tag {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: .1em; text-transform: uppercase;
+    padding: 5px 14px; border-radius: 20px;
+    margin-bottom: 24px; display: inline-block;
+  }
+  .s1-tag { background: rgba(255,107,53,.15); color: var(--s1); border: 1px solid rgba(255,107,53,.3); }
+  .s2-tag { background: rgba(0,201,167,.15); color: var(--s2); border: 1px solid rgba(0,201,167,.3); }
+  .s3-tag { background: rgba(255,209,102,.15); color: var(--s3); border: 1px solid rgba(255,209,102,.3); }
+  .s4-tag { background: rgba(167,139,250,.15); color: var(--s4); border: 1px solid rgba(167,139,250,.3); }
+
+  /* ── TYPOGRAPHY ── */
+  h1 { font-family: 'Syne', sans-serif; font-weight: 800; line-height: 1.05; }
+  h2 { font-family: 'Syne', sans-serif; font-weight: 700; }
+  .mono { font-family: 'DM Mono', monospace; }
+
+  /* ── COVER ── */
+  .cover { text-align: center; gap: 20px; }
+  .cover .big { font-size: clamp(3rem,8vw,7rem); color: var(--text); }
+  .cover .sub { font-size: 1.1rem; color: var(--muted); max-width: 500px; line-height: 1.6; }
+  .cover .dice-row { display: flex; gap: 20px; margin: 32px 0; font-size: 3.5rem; }
+  .cover .context-tag {
+    font-family: 'DM Mono', monospace; font-size: .85rem;
+    color: var(--s2); letter-spacing: .08em;
+  }
+
+  /* ── CONCEPT SLIDE ── */
+  .concept { max-width: 900px; width: 100%; }
+  .concept h2 { font-size: clamp(1.8rem,4vw,3rem); margin-bottom: 24px; }
+  .concept .lead { font-size: 1.15rem; color: var(--muted); line-height: 1.7; margin-bottom: 32px; max-width: 700px; }
+
+  .def-box {
+    background: var(--card); border-left: 4px solid var(--s1);
+    border-radius: 0 12px 12px 0; padding: 20px 28px;
+    margin: 16px 0;
+  }
+  .def-box.teal { border-color: var(--s2); }
+  .def-box.yellow { border-color: var(--s3); }
+  .def-box.violet { border-color: var(--s4); }
+
+  .def-box .label {
+    font-family: 'DM Mono', monospace; font-size: .75rem;
+    text-transform: uppercase; letter-spacing: .1em;
+    color: var(--s1); margin-bottom: 8px;
+  }
+  .def-box.teal .label { color: var(--s2); }
+  .def-box.yellow .label { color: var(--s3); }
+  .def-box.violet .label { color: var(--s4); }
+
+  .def-box p { font-size: 1rem; line-height: 1.6; }
+  .def-box .formula {
+    font-family: 'DM Mono', monospace; font-size: 1.3rem;
+    margin-top: 12px; color: var(--text);
+  }
+
+  /* ── GRID LAYOUTS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; max-width: 900px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; width: 100%; max-width: 900px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px;
+  }
+  .card .icon { font-size: 2rem; margin-bottom: 12px; }
+  .card h3 { font-family: 'Syne', sans-serif; font-size: 1.1rem; margin-bottom: 8px; }
+  .card p { font-size: .9rem; color: var(--muted); line-height: 1.5; }
+
+  /* ── VENN ── */
+  .venn-container { display: flex; align-items: center; gap: 48px; max-width: 900px; width: 100%; }
+  .venn-wrap { position: relative; width: 280px; height: 180px; flex-shrink: 0; }
+  .venn-wrap svg { width: 100%; height: 100%; }
+  .venn-labels { flex: 1; }
+
+  /* ── TIMELINE ── */
+  .sessions-overview { display: flex; gap: 0; max-width: 900px; width: 100%; }
+  .sess-block {
+    flex: 1; padding: 28px 20px; position: relative;
+    border-top: 3px solid var(--border);
+  }
+  .sess-block::before {
+    content: attr(data-num);
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 3rem; color: var(--border);
+    position: absolute; top: 16px; right: 16px;
+  }
+  .sess-block.active-s { border-color: var(--s1); }
+  .sess-block h3 { font-family: 'Syne', sans-serif; font-size: .95rem; margin-bottom: 8px; }
+  .sess-block ul { list-style: none; }
+  .sess-block ul li { font-size: .8rem; color: var(--muted); padding: 3px 0; }
+  .sess-block ul li::before { content: '→ '; color: var(--s1); }
+
+  /* ── EXPERIMENT ── */
+  .exp-scenario {
+    background: linear-gradient(135deg, var(--card), var(--surface));
+    border: 1px solid var(--border); border-radius: 16px;
+    padding: 36px 40px; max-width: 800px; width: 100%;
+    position: relative; overflow: hidden;
+  }
+  .exp-scenario::before {
+    content: '?'; font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 12rem; color: rgba(255,255,255,.03);
+    position: absolute; right: -20px; top: -40px; line-height: 1;
+  }
+  .exp-scenario .q { font-size: 1.4rem; line-height: 1.5; margin-bottom: 24px; }
+  .exp-scenario .hint { font-family: 'DM Mono', monospace; font-size: .85rem; color: var(--muted); }
+
+  /* ── FORMULA HERO ── */
+  .formula-hero {
+    text-align: center; max-width: 800px;
+    display: flex; flex-direction: column; align-items: center; gap: 24px;
+  }
+  .formula-hero .big-formula {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(1.5rem, 3.5vw, 2.8rem);
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 28px 48px;
+    line-height: 1.8;
+  }
+  .formula-hero .big-formula .accent { color: var(--s3); }
+  .formula-hero .big-formula .accent2 { color: var(--s2); }
+
+  /* ── TREE ── */
+  .tree-slide { max-width: 960px; width: 100%; }
+
+  /* ── ACTIVITY ── */
+  .activity-box {
+    background: var(--card); border: 2px dashed var(--s3);
+    border-radius: 16px; padding: 28px 36px; max-width: 840px; width: 100%;
+  }
+  .activity-box .act-title {
+    font-family: 'DM Mono', monospace; font-size: .8rem;
+    color: var(--s3); text-transform: uppercase; letter-spacing: .1em;
+    margin-bottom: 16px;
+  }
+  .activity-box h3 { font-family: 'Syne', sans-serif; font-size: 1.3rem; margin-bottom: 12px; }
+  .activity-box ol { padding-left: 20px; color: var(--muted); line-height: 1.9; font-size: .95rem; }
+
+  /* ── SUMMARY ── */
+  .summary-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; max-width: 840px; width: 100%; }
+  .sum-card {
+    background: var(--card); border-radius: 12px; padding: 20px 24px;
+    border: 1px solid var(--border);
+  }
+  .sum-card .num { font-family: 'DM Mono', monospace; font-size: .75rem; color: var(--muted); margin-bottom: 8px; }
+  .sum-card h4 { font-family: 'Syne', sans-serif; font-size: 1rem; margin-bottom: 6px; }
+  .sum-card p { font-size: .85rem; color: var(--muted); line-height: 1.5; }
+
+  /* ── KEYBOARD HINT ── */
+  .key-hint {
+    position: fixed; top: 24px; right: 40px;
+    font-family: 'DM Mono', monospace; font-size: .7rem;
+    color: var(--border); z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="pbar"></div>
+<div class="key-hint">← → para navegar · ESC para índice</div>
+
+<div class="deck" id="deck">
+
+  <!-- ══════════════ PORTADA ══════════════ -->
+  <div class="slide active" data-session="0">
+    <div class="cover" style="display:flex;flex-direction:column;align-items:center;">
+      <div class="context-tag">4º ESO · Matemáticas A · Última semana</div>
+      <div class="dice-row">🎲 🃏 🪙 🎯</div>
+      <h1 class="big">El Gran<br>Juego<br><span style="color:var(--s1)">del Azar</span></h1>
+      <p class="sub" style="margin-top:20px">4 sesiones para descubrir la probabilidad construyéndola desde cero</p>
+    </div>
+  </div>
+
+  <!-- ══════════════ ÍNDICE DE SESIONES ══════════════ -->
+  <div class="slide" data-session="0">
+    <h2 style="margin-bottom:36px;font-size:2rem;align-self:flex-start;max-width:900px;width:100%">¿Qué vamos a aprender?</h2>
+    <div class="sessions-overview">
+      <div class="sess-block active-s" data-num="1" style="border-color:var(--s1)">
+        <h3 style="color:var(--s1)">¿Qué puede pasar?</h3>
+        <ul>
+          <li>Experimento aleatorio</li>
+          <li>Espacio muestral</li>
+          <li>Sucesos y tipos</li>
+          <li>Unión, intersección, complementario</li>
+        </ul>
+      </div>
+      <div class="sess-block" data-num="2" style="border-color:var(--s2)">
+        <h3 style="color:var(--s2)">¿Con qué frecuencia?</h3>
+        <ul>
+          <li>Frecuencia relativa</li>
+          <li>Ley de los grandes números</li>
+          <li>Probabilidad clásica</li>
+          <li>Regla de Laplace</li>
+        </ul>
+      </div>
+      <div class="sess-block" data-num="3" style="border-color:var(--s3)">
+        <h3 style="color:var(--s3)">¿Y si ya sé algo?</h3>
+        <ul>
+          <li>Probabilidad condicionada</li>
+          <li>Tablas de doble entrada</li>
+          <li>Independencia de sucesos</li>
+        </ul>
+      </div>
+      <div class="sess-block" data-num="4" style="border-color:var(--s4)">
+        <h3 style="color:var(--s4)">Combinando experimentos</h3>
+        <ul>
+          <li>Experimentos compuestos</li>
+          <li>Diagrama en árbol</li>
+          <li>Con y sin reposición</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SESIÓN 1 ══════════════ -->
+  <div class="slide" data-session="1">
+    <div class="concept">
+      <div class="session-tag s1-tag">Sesión 1 · Apertura</div>
+      <h2>¿Puedes saber qué va a salir<br>antes de tirar el dado?</h2>
+      <p class="lead">Lanza el dado 5 veces. Anota los resultados. Responde: ¿puedes predecir el siguiente?</p>
+      <div class="activity-box" style="border-color:var(--s1)">
+        <div class="act-title">Experimento de apertura — en parejas</div>
+        <h3>El dado y la incertidumbre</h3>
+        <ol>
+          <li>Lanza el dado 10 veces. Anota cada resultado.</li>
+          <li>¿Conseguiste predecir alguno? ¿Cómo lo hiciste?</li>
+          <li>Escribe en lenguaje natural TODO lo que puede salir.</li>
+          <li>Escribe algo que es IMPOSIBLE que salga. Y algo SEGURO.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" data-session="1">
+    <div class="concept">
+      <div class="session-tag s1-tag">Sesión 1 · Formalización</div>
+      <h2>Del experimento a los conceptos</h2>
+      <div class="grid-2" style="margin-top:8px">
+        <div class="def-box">
+          <div class="label">Experimento aleatorio</div>
+          <p>Proceso cuyo resultado <strong>no podemos predecir</strong> con certeza, aunque sí conocemos todos los posibles resultados.</p>
+          <div class="formula">E: lanzar un dado 🎲</div>
+        </div>
+        <div class="def-box teal">
+          <div class="label">Espacio muestral Ω</div>
+          <p>Conjunto de <strong>todos los resultados posibles</strong> del experimento.</p>
+          <div class="formula">Ω = {1, 2, 3, 4, 5, 6}</div>
+        </div>
+        <div class="def-box yellow">
+          <div class="label">Suceso</div>
+          <p>Cualquier <strong>subconjunto</strong> del espacio muestral. Un resultado o grupo de resultados que nos interesa.</p>
+          <div class="formula">A = "sale par" = {2, 4, 6}</div>
+        </div>
+        <div class="def-box violet">
+          <div class="label">Suceso imposible / seguro</div>
+          <p>Imposible: nunca ocurre → <strong>∅</strong><br>Seguro: siempre ocurre → <strong>Ω</strong></p>
+          <div class="formula">∅ ⊂ A ⊂ Ω</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" data-session="1">
+    <div class="venn-container">
+      <div style="flex:1">
+        <div class="session-tag s1-tag">Sesión 1 · Operaciones con sucesos</div>
+        <h2 style="font-size:2rem;margin-bottom:24px">Operar con sucesos<br>es operar con conjuntos</h2>
+        <div class="def-box" style="margin-bottom:12px">
+          <div class="label">Unión A ∪ B</div>
+          <p>Ocurre A <strong>O</strong> B (o ambos)</p>
+          <div class="formula">A ∪ B = {2, 3, 4, 5, 6}</div>
+        </div>
+        <div class="def-box teal" style="margin-bottom:12px">
+          <div class="label">Intersección A ∩ B</div>
+          <p>Ocurre A <strong>Y</strong> B a la vez</p>
+          <div class="formula">A ∩ B = {6}</div>
+        </div>
+        <div class="def-box yellow">
+          <div class="label">Complementario A'</div>
+          <p>Ocurre lo contrario de A</p>
+          <div class="formula">A' = {1, 3, 5}</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:16px">
+        <svg viewBox="0 0 300 200" style="width:300px;height:200px">
+          <rect width="300" height="200" fill="var(--card)" rx="12"/>
+          <text x="150" y="24" text-anchor="middle" fill="var(--muted)" font-size="12" font-family="DM Mono">Ω = {1,2,3,4,5,6}</text>
+          <ellipse cx="120" cy="110" rx="80" ry="65" fill="rgba(255,107,53,.2)" stroke="var(--s1)" stroke-width="2"/>
+          <ellipse cx="180" cy="110" rx="80" ry="65" fill="rgba(0,201,167,.2)" stroke="var(--s2)" stroke-width="2"/>
+          <text x="90" y="95" text-anchor="middle" fill="var(--s1)" font-size="13" font-family="Lora">A</text>
+          <text x="210" y="95" text-anchor="middle" fill="var(--s2)" font-size="13" font-family="Lora">B</text>
+          <!-- Numbers -->
+          <text x="78" y="118" text-anchor="middle" fill="var(--text)" font-size="14">2</text>
+          <text x="95" y="138" text-anchor="middle" fill="var(--text)" font-size="14">4</text>
+          <text x="150" y="118" text-anchor="middle" fill="var(--s3)" font-size="14" font-weight="bold">6</text>
+          <text x="205" y="118" text-anchor="middle" fill="var(--text)" font-size="14">3</text>
+          <text x="222" y="138" text-anchor="middle" fill="var(--text)" font-size="14">5</text>
+          <text x="32" y="118" text-anchor="middle" fill="var(--muted)" font-size="14">1</text>
+          <text x="90" y="160" text-anchor="middle" fill="var(--s1)" font-size="11" font-family="DM Mono">A="par"</text>
+          <text x="205" y="160" text-anchor="middle" fill="var(--s2)" font-size="11" font-family="DM Mono">B=">4"</text>
+        </svg>
+        <p style="font-size:.85rem;color:var(--muted);text-align:center;font-family:'DM Mono'">A = {2,4,6} · B = {5,6}<br>A ∩ B = {6}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SESIÓN 2 ══════════════ -->
+  <div class="slide" data-session="2">
+    <div class="concept">
+      <div class="session-tag s2-tag">Sesión 2 · Apertura</div>
+      <h2>El experimento del siglo</h2>
+      <p class="lead">Cada persona lanza una moneda 10 veces. ¿Cuántas caras salen? ¿Y en toda la clase?</p>
+      <div class="activity-box" style="border-color:var(--s2)">
+        <div class="act-title">Experimento colectivo</div>
+        <h3>¿Converge la moneda?</h3>
+        <ol>
+          <li>Lanza la moneda 10 veces. Anota el nº de caras.</li>
+          <li>Calcula tu frecuencia relativa: nº caras ÷ 10</li>
+          <li>El profe recopila los datos de toda la clase en la pizarra.</li>
+          <li>¿Qué pasa con la frecuencia relativa cuando sumamos más lanzamientos?</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" data-session="2">
+    <div class="concept">
+      <div class="session-tag s2-tag">Sesión 2 · Frecuencia → Probabilidad</div>
+      <h2>Del experimento a la probabilidad</h2>
+      <div class="def-box teal" style="margin-bottom:16px">
+        <div class="label">Frecuencia relativa</div>
+        <p>Cociente entre el número de veces que ocurre A y el total de repeticiones del experimento.</p>
+        <div class="formula">f<sub>r</sub>(A) = nº veces que ocurre A / nº total de experimentos</div>
+      </div>
+      <div class="def-box teal" style="margin-bottom:16px">
+        <div class="label">Ley de los grandes números (informal)</div>
+        <p>Cuantas más veces repetimos el experimento, más se estabiliza la frecuencia relativa. Ese valor límite es la <strong>probabilidad</strong>.</p>
+      </div>
+      <div class="def-box yellow">
+        <div class="label">Regla de Laplace — cuando todos los casos son equiprobables</div>
+        <div class="formula" style="font-size:1.6rem">P(A) = casos favorables / casos posibles</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" data-session="2">
+    <div class="formula-hero">
+      <div class="session-tag s2-tag">Sesión 2 · Propiedad fundamental</div>
+      <h2 style="font-size:2rem">Toda probabilidad vive entre 0 y 1</h2>
+      <div class="big-formula">
+        0 ≤ <span class="accent">P(A)</span> ≤ 1<br>
+        <span class="accent2">P(Ω)</span> = 1<br>
+        P(A') = 1 − <span class="accent">P(A)</span>
+      </div>
+      <p style="color:var(--muted);font-size:1rem;max-width:500px;line-height:1.6">La probabilidad del suceso imposible es 0. La del suceso seguro es 1. La suma de probabilidades de todos los resultados posibles siempre es 1.</p>
+    </div>
+  </div>
+
+  <!-- ══════════════ SESIÓN 3 ══════════════ -->
+  <div class="slide" data-session="3">
+    <div class="concept">
+      <div class="session-tag s3-tag">Sesión 3 · Apertura</div>
+      <h2>¿Cambia la probabilidad<br>si ya sabes algo?</h2>
+      <div class="exp-scenario">
+        <div class="q">En el juego hay 20 cartas: 8 buenas 🟢 y 12 malas 🔴.<br>Ya se han jugado 5 cartas: 4 malas y 1 buena.<br><br><em>¿Sigue siendo igual de probable sacar una buena?</em></div>
+        <div class="hint">Discute con tu compañero/a antes de calcular.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" data-session="3">
+    <div class="concept">
+      <div class="session-tag s3-tag">Sesión 3 · Probabilidad condicionada</div>
+      <h2>P(A|B) — Probabilidad de A dado que ha ocurrido B</h2>
+      <div class="def-box yellow" style="margin-bottom:20px">
+        <div class="label">Definición</div>
+        <p>Probabilidad de que ocurra A <strong>sabiendo que ya ha ocurrido B</strong>. Restringimos el espacio muestral a B.</p>
+        <div class="formula" style="font-size:1.5rem">P(A|B) = P(A ∩ B) / P(B)</div>
+      </div>
+      <div class="def-box yellow">
+        <div class="label">Consecuencia — Regla del producto</div>
+        <div class="formula" style="font-size:1.3rem">P(A ∩ B) = P(B) · P(A|B)</div>
+      </div>
+      <p class="lead" style="margin-top:20px;margin-bottom:0">La clave: cuando ocurre B, el espacio muestral se <em>reduce</em>. Solo miramos dentro de B.</p>
+    </div>
+  </div>
+
+  <div class="slide" data-session="3">
+    <div class="concept">
+      <div class="session-tag s3-tag">Sesión 3 · Independencia</div>
+      <h2>¿Cuándo NO cambia nada saber B?</h2>
+      <div class="def-box violet" style="margin-bottom:20px">
+        <div class="label">Sucesos independientes</div>
+        <p>A y B son <strong>independientes</strong> si que ocurra uno no afecta la probabilidad del otro.</p>
+        <div class="formula">P(A|B) = P(A) &nbsp;⟺&nbsp; P(A ∩ B) = P(A)·P(B)</div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="icon">🎲🎲</div>
+          <h3>Independientes</h3>
+          <p>Lanzar un dado dos veces. El segundo lanzamiento no recuerda el primero.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🎴🎴</div>
+          <h3>Dependientes</h3>
+          <p>Sacar dos cartas de una baraja sin reposición. La segunda depende de lo que salió antes.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SESIÓN 4 ══════════════ -->
+  <div class="slide" data-session="4">
+    <div class="concept">
+      <div class="session-tag s4-tag">Sesión 4 · Apertura</div>
+      <h2>El turno doble</h2>
+      <div class="exp-scenario">
+        <div class="q">En tu turno lanzas primero una moneda y luego un dado.<br>Si sale <strong>cara</strong> → avanzas los puntos del dado 🟢<br>Si sale <strong>cruz</strong> → retrocedes esos puntos 🔴<br><br><em>¿Cuántas situaciones distintas pueden ocurrir? ¿Cuál tiene más probabilidad de hacerte avanzar mucho?</em></div>
+        <div class="hint">Intenta listar todos los casos posibles antes de seguir.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide" data-session="4">
+    <div class="tree-slide">
+      <div class="session-tag s4-tag">Sesión 4 · Diagrama en árbol</div>
+      <h2 style="font-size:2rem;margin-bottom:24px">El árbol de probabilidades</h2>
+      <svg viewBox="0 0 860 340" style="width:100%;max-width:860px;height:auto">
+        <!-- Root -->
+        <circle cx="80" cy="170" r="20" fill="var(--card)" stroke="var(--s4)" stroke-width="2"/>
+        <text x="80" y="175" text-anchor="middle" fill="var(--text)" font-size="14" font-family="DM Mono">🪙</text>
+
+        <!-- Level 1: Cara / Cruz -->
+        <line x1="100" y1="155" x2="240" y2="90" stroke="var(--s2)" stroke-width="2"/>
+        <line x1="100" y1="185" x2="240" y2="250" stroke="var(--s1)" stroke-width="2"/>
+
+        <text x="160" y="108" fill="var(--s2)" font-size="12" font-family="DM Mono" text-anchor="middle">CARA · ½</text>
+        <text x="160" y="238" fill="var(--s1)" font-size="12" font-family="DM Mono" text-anchor="middle">CRUZ · ½</text>
+
+        <rect x="240" y="72" width="60" height="36" rx="8" fill="var(--card)" stroke="var(--s2)" stroke-width="2"/>
+        <text x="270" y="95" text-anchor="middle" fill="var(--s2)" font-size="13" font-family="Syne">CARA</text>
+        <rect x="240" y="232" width="60" height="36" rx="8" fill="var(--card)" stroke="var(--s1)" stroke-width="2"/>
+        <text x="270" y="255" text-anchor="middle" fill="var(--s1)" font-size="13" font-family="Syne">CRUZ</text>
+
+        <!-- Level 2: dado cara -->
+        <line x1="300" y1="90" x2="440" y2="42" stroke="var(--s2)" stroke-width="1.5"/>
+        <line x1="300" y1="90" x2="440" y2="66" stroke="var(--s2)" stroke-width="1.5"/>
+        <line x1="300" y1="90" x2="440" y2="90" stroke="var(--s2)" stroke-width="1.5"/>
+        <line x1="300" y1="250" x2="440" y2="198" stroke="var(--s1)" stroke-width="1.5"/>
+        <line x1="300" y1="250" x2="440" y2="222" stroke="var(--s1)" stroke-width="1.5"/>
+        <line x1="300" y1="250" x2="440" y2="246" stroke="var(--s1)" stroke-width="1.5"/>
+
+        <!-- Only showing 3 branches for space -->
+        <text x="390" y="37" fill="var(--muted)" font-size="11" font-family="DM Mono">1 · ⅙</text>
+        <text x="390" y="61" fill="var(--muted)" font-size="11" font-family="DM Mono">2 · ⅙</text>
+        <text x="390" y="85" fill="var(--muted)" font-size="11" font-family="DM Mono">3 · ⅙</text>
+        <text x="390" y="193" fill="var(--muted)" font-size="11" font-family="DM Mono">1 · ⅙</text>
+        <text x="390" y="217" fill="var(--muted)" font-size="11" font-family="DM Mono">2 · ⅙</text>
+        <text x="390" y="241" fill="var(--muted)" font-size="11" font-family="DM Mono">3 · ⅙</text>
+
+        <!-- Dots indicating more -->
+        <text x="430" y="110" fill="var(--muted)" font-size="18">⋮</text>
+        <text x="430" y="266" fill="var(--muted)" font-size="18">⋮</text>
+
+        <!-- Final probabilities -->
+        <rect x="480" y="26" width="130" height="28" rx="6" fill="rgba(0,201,167,.1)" stroke="var(--s2)" stroke-width="1"/>
+        <text x="545" y="44" text-anchor="middle" fill="var(--s2)" font-size="11" font-family="DM Mono">P = ½ × ⅙ = 1/12</text>
+        <rect x="480" y="54" width="130" height="28" rx="6" fill="rgba(0,201,167,.1)" stroke="var(--s2)" stroke-width="1"/>
+        <text x="545" y="72" text-anchor="middle" fill="var(--s2)" font-size="11" font-family="DM Mono">P = ½ × ⅙ = 1/12</text>
+        <rect x="480" y="78" width="130" height="28" rx="6" fill="rgba(0,201,167,.1)" stroke="var(--s2)" stroke-width="1"/>
+        <text x="545" y="96" text-anchor="middle" fill="var(--s2)" font-size="11" font-family="DM Mono">P = ½ × ⅙ = 1/12</text>
+
+        <rect x="480" y="182" width="130" height="28" rx="6" fill="rgba(255,107,53,.1)" stroke="var(--s1)" stroke-width="1"/>
+        <text x="545" y="200" text-anchor="middle" fill="var(--s1)" font-size="11" font-family="DM Mono">P = ½ × ⅙ = 1/12</text>
+        <rect x="480" y="210" width="130" height="28" rx="6" fill="rgba(255,107,53,.1)" stroke="var(--s1)" stroke-width="1"/>
+        <text x="545" y="228" text-anchor="middle" fill="var(--s1)" font-size="11" font-family="DM Mono">P = ½ × ⅙ = 1/12</text>
+        <rect x="480" y="234" width="130" height="28" rx="6" fill="rgba(255,107,53,.1)" stroke="var(--s1)" stroke-width="1"/>
+        <text x="545" y="252" text-anchor="middle" fill="var(--s1)" font-size="11" font-family="DM Mono">P = ½ × ⅙ = 1/12</text>
+
+        <!-- Rule box -->
+        <rect x="640" y="120" width="200" height="100" rx="12" fill="var(--card)" stroke="var(--s4)" stroke-width="2"/>
+        <text x="740" y="148" text-anchor="middle" fill="var(--s4)" font-size="11" font-family="DM Mono">REGLA DEL ÁRBOL</text>
+        <text x="740" y="170" text-anchor="middle" fill="var(--text)" font-size="12" font-family="Lora">Probabilidad de</text>
+        <text x="740" y="188" text-anchor="middle" fill="var(--text)" font-size="12" font-family="Lora">una hoja = producto</text>
+        <text x="740" y="206" text-anchor="middle" fill="var(--text)" font-size="12" font-family="Lora">de la rama completa</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="slide" data-session="4">
+    <div class="concept">
+      <div class="session-tag s4-tag">Sesión 4 · Síntesis</div>
+      <h2 style="font-size:1.8rem;margin-bottom:28px">Mapa de decisión para experimentos compuestos</h2>
+      <div class="grid-2">
+        <div class="def-box violet">
+          <div class="label">¿Son independientes los experimentos?</div>
+          <p><strong>SÍ →</strong> Multiplico las probabilidades directamente</p>
+          <div class="formula">P(A∩B) = P(A) · P(B)</div>
+        </div>
+        <div class="def-box yellow">
+          <div class="label">¿Son dependientes?</div>
+          <p><strong>NO →</strong> Uso la probabilidad condicionada</p>
+          <div class="formula">P(A∩B) = P(A) · P(B|A)</div>
+        </div>
+        <div class="def-box teal">
+          <div class="label">¿Quiero la P de una secuencia?</div>
+          <p>Recorro el árbol y multiplico por el camino hasta esa hoja.</p>
+        </div>
+        <div class="def-box">
+          <div class="label">¿Quiero la P de un suceso compuesto?</div>
+          <p>Identifico todas las hojas favorables y <strong>sumo</strong> sus probabilidades.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ CIERRE ══════════════ -->
+  <div class="slide" data-session="0">
+    <div class="formula-hero">
+      <h1 style="font-size:clamp(2rem,5vw,4rem)">Lo que hemos construido</h1>
+      <div class="summary-grid" style="margin-top:20px">
+        <div class="sum-card">
+          <div class="num" style="color:var(--s1)">Sesión 1</div>
+          <h4>Lenguaje de la probabilidad</h4>
+          <p>Espacio muestral, sucesos, unión, intersección, complementario.</p>
+        </div>
+        <div class="sum-card">
+          <div class="num" style="color:var(--s2)">Sesión 2</div>
+          <h4>Medir la probabilidad</h4>
+          <p>Frecuencia relativa, Laplace, propiedades fundamentales.</p>
+        </div>
+        <div class="sum-card">
+          <div class="num" style="color:var(--s3)">Sesión 3</div>
+          <h4>Probabilidad con información</h4>
+          <p>Probabilidad condicionada, regla del producto, independencia.</p>
+        </div>
+        <div class="sum-card">
+          <div class="num" style="color:var(--s4)">Sesión 4</div>
+          <h4>Combinar experimentos</h4>
+          <p>Diagrama en árbol, con y sin reposición, sumar ramas.</p>
+        </div>
+      </div>
+      <p style="color:var(--muted);font-size:1rem;margin-top:16px">🎲 La probabilidad no predice lo que <em>va</em> a pasar.<br>Mide lo que <em>cabe esperar</em> que pase.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- NAV -->
+<div class="progress" id="prog">Diapositiva 1 / 15</div>
+<div class="nav">
+  <button id="prev" disabled>← Anterior</button>
+  <button id="next">Siguiente →</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  let cur = 0;
+  const total = slides.length;
+  const pbar = document.getElementById('pbar');
+  const prog = document.getElementById('prog');
+  const prev = document.getElementById('prev');
+  const next = document.getElementById('next');
+
+  function go(n) {
+    slides[cur].classList.remove('active');
+    cur = Math.max(0, Math.min(n, total - 1));
+    slides[cur].classList.add('active');
+    prev.disabled = cur === 0;
+    next.disabled = cur === total - 1;
+    prog.textContent = `Diapositiva ${cur + 1} / ${total}`;
+    pbar.style.width = `${((cur + 1) / total) * 100}%`;
+  }
+
+  prev.addEventListener('click', () => go(cur - 1));
+  next.addEventListener('click', () => go(cur + 1));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') go(cur + 1);
+    if (e.key === 'ArrowLeft') go(cur - 1);
+    if (e.key === 'Escape') go(1); // índice
+  });
+  go(0);
+</script>
+</body>
+</html>
